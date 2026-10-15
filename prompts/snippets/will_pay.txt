@@ -1,0 +1,3 @@
+## Borrower agrees to pay
+Confirm the exact amount_due and the date the borrower gives, then call record_promise_to_pay with amount equal to amount_due.
+Do not offer discounts or waivers. Do not promise that late fees will be removed.

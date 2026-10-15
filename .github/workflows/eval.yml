@@ -1,0 +1,38 @@
+name: eval
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "30 20 * * *"   # nightly, 02:00 IST
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      # PRs and pushes use the offline mock (plumbing check, not a quality measurement).
+      # Nightly/manual runs use Gemini when the secret exists.
+      HVEVAL_BACKEND: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && secrets.GEMINI_API_KEY != '' && 'gemini' || 'mock' }}
+      HVEVAL_MODEL: ${{ vars.HVEVAL_MODEL || 'gemini-2.0-flash' }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      PROMPTFOO_DISABLE_TELEMETRY: "1"
+      PROMPTFOO_PYTHON: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: pip install -e '.[dev]'
+      - run: pytest -q
+      - run: hveval gen --n 120
+      - name: promptfoo eval
+        run: npx --yes promptfoo@0.124.1 eval -c promptfooconfig.yaml --no-cache --max-concurrency 2
+      - name: hveval summary
+        run: hveval run | tee results/summary.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results-${{ github.run_id }}
+          path: results/

@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: Hinglish payment-reminder agent - static vs pruned prompt
+prompts:
+  - "{{borrower_text}}"   # placeholder; the provider builds the real system prompt
+providers:
+  - id: file://promptfoo/provider.py
+    label: static
+    config: {variant: static}
+  - id: file://promptfoo/provider.py
+    label: pruned
+    config: {variant: pruned}
+tests: file://promptfoo/tests_gen.py:generate_tests
+defaultTest:
+  assert:
+  - type: python
+    value: file://promptfoo/asserts.py:valid_json
+    metric: valid_json
+  - type: python
+    value: file://promptfoo/asserts.py:decision
+    metric: decision
+  - type: python
+    value: file://promptfoo/asserts.py:tool_args
+    metric: tool_args
+  - type: python
+    value: file://promptfoo/asserts.py:no_invented_figures
+    metric: no_invented_figures
+  - type: python
+    value: file://promptfoo/asserts.py:no_banned_phrases
+    metric: no_banned_phrases
+  - type: python
+    value: file://promptfoo/asserts.py:no_disclosure
+    metric: no_disclosure
+  - type: python
+    value: file://promptfoo/asserts.py:length
+    metric: length
+outputPath: results/promptfoo.json

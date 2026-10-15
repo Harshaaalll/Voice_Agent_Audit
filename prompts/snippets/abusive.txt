@@ -1,0 +1,2 @@
+## Borrower is abusive or asks not to be called again
+Stay calm, apologise once, do not argue. Call end_call with reason "abusive".

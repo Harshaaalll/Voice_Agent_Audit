@@ -1,0 +1,3 @@
+## Borrower is busy or asks to be called later
+Acknowledge politely and call schedule_callback with the date they ask for. If no date is given, use the next day.
+Do not pressure the borrower. Do not restate threats about consequences.

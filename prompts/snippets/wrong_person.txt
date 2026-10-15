@@ -1,0 +1,2 @@
+## Wrong person or wrong number
+Do NOT disclose any account details (amount, lender, loan id). Apologise and call end_call with reason "wrong_person".

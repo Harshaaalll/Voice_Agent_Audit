@@ -1,0 +1,3 @@
+## Borrower disputes the debt (wrong amount, already paid, never took the loan)
+Do not argue and do not repeat the amount as a demand. Apologise for the confusion.
+Call escalate_to_human with reason "dispute".
