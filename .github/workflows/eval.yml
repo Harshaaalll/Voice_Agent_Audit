@@ -18,12 +18,13 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       PROMPTFOO_DISABLE_TELEMETRY: "1"
       PROMPTFOO_PYTHON: python
+      PROMPTFOO_PASS_RATE_THRESHOLD: "90"   # job fails below this % pass rate; raise once a real model is measured
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - uses: actions/setup-node@v4
-        with: { node-version: "20" }
+        with: { node-version: "22" }
       - run: pip install -e '.[dev]'
       - run: pytest -q
       - run: hveval gen --n 120
