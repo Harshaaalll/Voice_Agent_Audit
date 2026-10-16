@@ -10,16 +10,17 @@ anything produced on the mock backend or from unreviewed drafts is labeled as su
 ## Results so far (measured, with caveats)
 | what | result | caveat |
 |---|---|---|
-| Prompt size, `pruned` vs `static` | 47.3% fewer prompt tokens | chars/4 estimate; quality impact **not measured** (needs a real model) |
+| Prompt size, `pruned` vs `static`, real model (`gemini-3.5-flash-lite`, 120 scenarios each) | 806 to 455 prompt tokens (**43.5% fewer**) | provider-reported token counts; single run on the free tier |
+| Rule checks, same real-model run | decision 120/120 (`static`) vs 119/120 (`pruned`); no account disclosure 118/120 vs 115/120; valid tool args 116/120 vs 115/120; JSON, invented figures, banned phrases and length all pass | gaps of 1 to 3 failures in 120 are within noise, so quality parity is not established. Latency (p50 about 6 s) includes free-tier retry waits and is not model speed |
 | Retrieval, best of 5 setups (multilingual model + BM25) | recall@3 **0.53** (95% CI 0.40 to 0.65) on 49 queries | gold queries drafted by the assistant, 0 human-reviewed; CIs overlap between most setups |
 | Dense multilingual model alone, Hinglish queries | recall@3 **0.11** vs 0.54 on English | Roman-script Hindi is poorly handled; hybrid with BM25 recovers it |
 | Context recall on 60 scenarios | **0.44** (0.33 to 0.55) best setup vs 0.24 (0.15 to 0.34) default | required-chunk map drafted by the assistant |
 | pgvector vs in-memory ranking | identical top-3 on all queries | checked once, `hash` embedder |
 | BLEU/chrF on wrong-amount translations | average about 0.90 (BLEU) and 0.96 (chrF), versus 0.14 / 0.57 for word salad | synthetic degradations; shows the metric is blind to wrong facts, which a fact check catches |
 
-**Not measured yet:** judge-vs-human agreement (needs your 160 labels and a Gemini key), metric-vs-human correlation for
-translations (needs 60 ratings), real-model decision quality, faithfulness, Langfuse tracing against a live project,
-any cloud deployment.
+**Not measured yet:** judge-vs-human agreement (needs 160 human labels), metric-vs-human correlation for
+translations (needs 60 ratings), real-model faithfulness, context recall and metamorphic results (runs in progress),
+any cloud deployment. **Verified live:** Langfuse accepted a test trace (2 events accepted, 0 errors).
 
 ## Architecture
 ```mermaid
@@ -42,8 +43,8 @@ Deployment notes are in `deploy/README.md`.
 - [x] Weekend 3 code: BLEU/chrF + fact check, metamorphic tests, dashboard. **0 / 60 human ratings.** (COMET intentionally skipped: disk and cost.)
 - [x] Phase 1: FastAPI + PostgreSQL service, Docker Compose
 - [x] Phase 2: policy corpus in pgvector, `/retrieve`, `rag` variant, retrieval evaluation. **0 / 49 gold queries human-reviewed.**
-- [x] Phase 3: Redis judge cache and job queue + worker, p50/p95 latency, Langfuse tracing hooks (unverified live), context recall / faithfulness
-- [ ] Phase 4: cloud deployment (`deploy/README.md` is written but **not executed**), Ragas package adapter, real-model runs
+- [x] Phase 3: Redis judge cache and job queue + worker, p50/p95 latency, Langfuse tracing (verified against a live project), context recall / faithfulness
+- [ ] Phase 4: cloud deployment (`deploy/README.md` is written but **not executed**), Ragas package adapter, remaining real-model runs (faithfulness, metamorphic, judge)
 
 ## Run
     python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'
@@ -128,5 +129,5 @@ Caveats: the corpus is synthetic; the 49 gold queries were drafted by the assist
 - **Judge cache:** judge calls are cached in Redis (falls back to in-process memory if `REDIS_URL` is unset or unreachable).
 - **Context recall / faithfulness:** implemented here following the Ragas definitions; the `ragas` package itself is not used. Context recall is ID-based against a
   scenario-to-required-chunk map drafted by the assistant. Faithfulness needs a real judge (a deterministic proxy runs on the mock backend).
-- **Langfuse:** posts to the REST ingestion endpoint. The request shape is unit-tested but has not been verified against a live Langfuse project; run `vaa trace-check` once with real keys.
+- **Langfuse:** posts to the REST ingestion endpoint. The request shape is unit-tested, and one test trace was accepted by a live Langfuse project (2 events accepted, 0 errors). Run `vaa trace-check` once with your own keys (`LANGFUSE_BASE_URL` or `LANGFUSE_HOST` both work).
 - **Dev workflow:** `.claude/skills/pm-builder-tester` defines a Product Manager / Builder / Tester loop; iterations are logged in `docs/loop-log.md`.
