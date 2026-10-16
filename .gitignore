@@ -11,3 +11,5 @@ data/injected_defects.jsonl
 .env
 results/dashboard.html
 data/translation_hidden.jsonl
+results/*.db
+*.mp3

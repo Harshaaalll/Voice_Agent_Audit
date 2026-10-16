@@ -7,9 +7,10 @@ pruned : core + compliance + top-k snippets retrieved by keyword match on the bo
 from __future__ import annotations
 import json
 import re
+import os
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2] / "prompts"
+ROOT = Path(os.environ.get("VAA_PROMPTS_DIR") or Path(__file__).resolve().parents[2] / "prompts")
 INTENT_SNIPPETS = ["will_pay", "needs_time", "hardship", "dispute", "wrong_person", "abusive"]
 ALWAYS_PRUNED = ["compliance", "language"]
 ALL_SNIPPETS = INTENT_SNIPPETS + ["compliance", "language", "faq"]
@@ -46,13 +47,17 @@ def account_block(account: dict) -> str:
     return "ACCOUNT:\n" + json.dumps(account, ensure_ascii=False)
 
 
-def build_prompt(variant: str, account: dict, borrower_text: str, k: int = 2) -> str:
+def build_prompt(variant: str, account: dict, borrower_text: str, k: int = 2, context: list[str] | None = None) -> str:
     parts = [_read("core.txt")]
     if variant == "static":
         parts += [_snippet(n) for n in ALL_SNIPPETS]
     elif variant == "pruned":
         names = ALWAYS_PRUNED[:1] + retrieve(borrower_text, k)  # compliance + retrieved
         parts += [_snippet(n) for n in names]
+    elif variant == "rag":
+        if context is None:
+            raise ValueError("variant 'rag' needs retrieved context")
+        parts.append("POLICY EXCERPTS (retrieved for this call):\n" + "\n".join(f"- {c}" for c in context))
     else:
         raise ValueError(variant)
     parts.append(account_block(account))

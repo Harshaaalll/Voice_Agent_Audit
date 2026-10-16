@@ -1,0 +1,9 @@
+.git
+.venv
+node_modules
+results
+__pycache__
+*.egg-info
+.env
+promptfoo
+tests

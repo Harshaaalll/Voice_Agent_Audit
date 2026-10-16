@@ -1,12 +1,12 @@
 import json
 import pytest
 
-from hveval.judge import Judge, position_bias, verbosity_bias
-from hveval.labeling import load_labels, run as label_run
-from hveval.notechecks import note_complete, note_concise, note_faithful, policy_ok, run_deterministic
-from hveval.report import build
-from hveval.stats import agreement, cohen_kappa, scorecard
-from hveval.transcripts import generate_transcripts
+from voice_agent_audit.judge import Judge, position_bias, verbosity_bias
+from voice_agent_audit.labeling import load_labels, run as label_run
+from voice_agent_audit.notechecks import note_complete, note_concise, note_faithful, policy_ok, run_deterministic
+from voice_agent_audit.report import build
+from voice_agent_audit.stats import agreement, cohen_kappa, scorecard
+from voice_agent_audit.transcripts import generate_transcripts
 
 TR, INJ = generate_transcripts(60, seed=3)
 

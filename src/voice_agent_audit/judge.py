@@ -37,28 +37,51 @@ def _render(t: dict, note: str | None = None) -> str:
 
 
 class Judge:
-    def __init__(self, backend_name=None, model=None, agent_backend=None, agent_model=None):
-        self.backend_name = backend_name or os.environ.get("HVEVAL_JUDGE_BACKEND", "mock")
-        self.model = model or os.environ.get("HVEVAL_JUDGE_MODEL", "mock-judge")
-        agent_backend = agent_backend or os.environ.get("HVEVAL_BACKEND", "mock")
-        agent_model = agent_model or os.environ.get("HVEVAL_MODEL", "mock")
+    def __init__(self, backend_name=None, model=None, agent_backend=None, agent_model=None, cache=None):
+        self.backend_name = backend_name or os.environ.get("VAA_JUDGE_BACKEND", "mock")
+        self.model = model or os.environ.get("VAA_JUDGE_MODEL", "mock-judge")
+        agent_backend = agent_backend or os.environ.get("VAA_BACKEND", "mock")
+        agent_model = agent_model or os.environ.get("VAA_MODEL", "mock")
         self.is_proxy = self.backend_name == "mock"
         same = (self.backend_name, self.model) == (agent_backend, agent_model)
-        if same and not self.is_proxy and os.environ.get("HVEVAL_ALLOW_SAME_JUDGE") != "1":
+        if same and not self.is_proxy and os.environ.get("VAA_ALLOW_SAME_JUDGE") != "1":
             raise ValueError("judge must be a different model from the agent "
                              f"(both are {agent_backend}:{agent_model})")
-        self.backend = None if self.is_proxy else get_backend(self.backend_name)
+        self.backend = None if self.is_proxy else get_backend(self.backend_name, cached=False)
+        from .service.cache import get_cache
+        self.cache = cache if cache is not None else get_cache()
 
     @property
     def label(self) -> str:
         return f"{self.backend_name}:{self.model}" + (" (deterministic proxy)" if self.is_proxy else "")
 
     def _ask(self, system: str, user: str) -> dict | None:
+        from .service.cache import make_key
+        key = make_key(self.backend_name, self.model, system, user)
+        hit = self.cache.get(key)
+        if hit is not None:
+            return hit
         r = self.backend.complete(system, [{"role": "user", "content": user}], self.model)
         try:
-            return json.loads(re.sub(r"^```(?:json)?|```$", "", r.text.strip(), flags=re.M).strip())
+            out = json.loads(re.sub(r"^```(?:json)?|```$", "", r.text.strip(), flags=re.M).strip())
         except Exception:  # noqa: BLE001
             return None
+        self.cache.set(key, out)          # only successful parses are cached
+        return out
+
+    def support(self, context: str, statement: str) -> int | None:
+        """Is `statement` fully supported by `context`? (faithfulness building block)"""
+        if self.is_proxy:
+            from .checks import BANNED
+            nums = lambda x: set(re.findall(r"\d+", x.replace(",", "")))
+            return int(nums(statement) <= nums(context) and not any(b in statement.lower() for b in BANNED))
+        sys_p = ("You check whether a STATEMENT said by a collections agent is supported by the CONTEXT "
+                 "(policy excerpts, account facts and the borrower's message). A statement that adds an amount, "
+                 "fee, promise or fact not in the context is unsupported. Greetings and polite acknowledgements "
+                 "are supported. Respond ONLY with JSON: {\"supported\": 0 or 1}")
+        out = self._ask(sys_p, f"CONTEXT:\n{context}\n\nSTATEMENT: {statement}")
+        v = (out or {}).get("supported")
+        return int(v) if v in (0, 1) else None
 
     def score(self, t: dict, criterion: str, note: str | None = None) -> int | None:
         if self.is_proxy:

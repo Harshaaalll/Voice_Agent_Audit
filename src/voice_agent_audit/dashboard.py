@@ -7,11 +7,31 @@ from pathlib import Path
 
 def _load(p):
     p = Path(p)
-    return json.loads(p.read_text()) if p.exists() else None
+    if not p.exists():
+        return None
+    try:
+        d = json.loads(p.read_text())
+    except (ValueError, OSError):
+        return None
+    return d if isinstance(d, dict) else None
 
 
 def _f(x, d=3):
-    return "—" if x is None else f"{x:.{d}f}"
+    try:
+        return f"{float(x):.{d}f}"
+    except (ValueError, TypeError):
+        return "—"
+
+
+def _ci(ci):
+    """' [lo, hi]' with bad bounds as em dashes, or '' when ci is not a 2-list."""
+    if not isinstance(ci, (list, tuple)) or len(ci) != 2:
+        return ""
+    return f" [{_f(ci[0])}, {_f(ci[1])}]"
+
+
+def _d(x):
+    return x if isinstance(x, dict) else {}
 
 
 def build(results_dir="results", out="results/dashboard.html") -> str:
@@ -46,7 +66,7 @@ def build(results_dir="results", out="results/dashboard.html") -> str:
         sect("Weekend 2 · judge vs human (Cohen's κ)", table(["criterion", "n labeled", "κ", "95% CI", "power"], rows),
              f"Judge: {jr['judge']}")
     else:
-        sect("Weekend 2 · judge vs human", "<p>UNMEASURED — run hveval label, judge, report</p>")
+        sect("Weekend 2 · judge vs human", "<p>UNMEASURED — run vaa label, judge, report</p>")
     if jb:
         p, v = jb["position"], jb["verbosity"]
         sect("Weekend 2 · judge bias", table(["probe", "value"], [
@@ -62,16 +82,57 @@ def build(results_dir="results", out="results/dashboard.html") -> str:
             ["metric", "n rated", "Spearman ρ", "95% CI", "critical errors scored above median"], rows),
              tr.get("note", ""))
     else:
-        sect("Weekend 3 · translation metrics vs human", "<p>UNMEASURED — run hveval rate, tmetrics</p>")
+        sect("Weekend 3 · translation metrics vs human", "<p>UNMEASURED — run vaa rate, tmetrics</p>")
     if mm:
         rows = [(k, f"{v['violations']}/{v['n']}", _f(v["violation_rate"])) for k, v in mm["relations"].items()]
         sect("Weekend 3 · metamorphic invariance", table(["relation", "violations", "rate"], rows),
              "MOCK backend — plumbing only" if mm["is_mock"] else f"{mm['backend']}:{mm['model']}")
+    rt, rg = _load(R / "retrieval_report.json"), _load(R / "rag_report.json")
+    def missing(title, path, cmd):
+        why = "UNMEASURED (unreadable report)" if (R / path).exists() else "UNMEASURED"
+        sect(title, f"<p>{why} — run {cmd}</p>")
+
+    if rt:
+        rows = []
+        for name, v in _d(rt.get("retrievers")).items():
+            o = _d(_d(v).get("overall"))
+            rows.append((name, _f(o.get("recall")) + _ci(o.get("recall_ci95")), _f(o.get("hit")), _f(o.get("rr")),
+                         _f(_d(_d(v).get("latency_ms")).get("p50"))))
+        note = (f"{_d(rt.get('gold')).get('n_reviewed_by_human', 0)} of {rt.get('n_queries')} gold queries "
+                "reviewed by a human (the rest are drafts)")
+        sk = rt.get("skipped")
+        if isinstance(sk, dict) and sk:
+            note += ". Skipped: " + ", ".join(f"{k} ({v})" for k, v in sk.items())
+        elif isinstance(sk, list) and sk:
+            note += ". Skipped: " + ", ".join(str(k) for k in sk)
+        sect("Phase 2 · retrieval", table(
+            ["retriever", f"recall@{rt.get('k', 'k')} [95% CI]", "hit", "MRR", "p50 ms"], rows), note)
+    else:
+        missing("Phase 2 · retrieval", "retrieval_report.json", "vaa retrieval-eval")
+    if rg:
+        rows = []
+        for name, v in _d(rg.get("variants")).items():
+            v = _d(v)
+            cr, fa = v.get("context_recall"), v.get("faithfulness")
+            lat = _d(v.get("latency_s"))
+            rows.append((name, _f(v.get("mean_input_tokens"), 1), _f(lat.get("p50"), 4), _f(lat.get("p95"), 4),
+                         _f(_d(v.get("pass_rate")).get("decision")),
+                         (_f(_d(cr).get("mean")) + _ci(_d(cr).get("ci95"))) if isinstance(cr, dict) else "—",
+                         _f(_d(fa).get("mean")) if isinstance(fa, dict) else "—"))
+        rv = _d(rg.get("retrieval"))
+        note = f"Retrieval setup: embedder {rv.get('embedder')}, mode {rv.get('mode')}."
+        if rg.get("is_mock"):
+            note = "MOCK backend, plumbing only, not model quality. " + note
+        sect("Phase 3 · RAG variants", table(
+            ["variant", "mean input tokens", "latency p50 s", "latency p95 s", "decision pass rate",
+             "context recall [95% CI]", "faithfulness"], rows), note)
+    else:
+        missing("Phase 3 · RAG variants", "rag_report.json", "vaa rag-eval")
     css = ("body{font:15px system-ui;margin:2rem auto;max-width:860px;padding:0 1rem;background:#fff;color:#111}"
            "table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:.35rem .6rem;text-align:left}"
            "h2{margin-top:2rem}.note{color:#555}@media(prefers-color-scheme:dark){body{background:#111;color:#eee}"
            "td,th{border-color:#444}.note{color:#aaa}}")
-    page = f"<!doctype html><meta charset=utf-8><title>Hinglish voice eval</title><style>{css}</style><h1>Hinglish voice AI eval</h1>{''.join(sec)}"
-    Path(out).parent.mkdir(exist_ok=True)
+    page = f"<!doctype html><meta charset=utf-8><title>Voice Agent Audit</title><style>{css}</style><h1>Voice Agent Audit</h1><p class=note>Evaluation kit for Hinglish payment-reminder voice agents</p>{''.join(sec)}"
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
     Path(out).write_text(page)
     return out

@@ -1,15 +1,18 @@
 [project]
-name = "hveval"
+name = "voice-agent-audit"
 version = "0.1.0"
 description = "Evaluation kit for a synthetic Hinglish payment-reminder voice agent (text mode)"
 requires-python = ">=3.10"
 dependencies = ["requests>=2.31", "pyyaml>=6.0"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "httpx>=0.27"]
+rag = ["fastembed>=0.3"]
+service = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "psycopg[binary]>=3.1", "redis>=5", "httpx>=0.27"]
 
 [project.scripts]
-hveval = "hveval.cli:main"
+vaa = "voice_agent_audit.cli:main"
+voice-agent-audit = "voice_agent_audit.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]

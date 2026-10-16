@@ -48,7 +48,7 @@ def _decide(backend, model, variant, account, text) -> str | None:
 
 def run(rows: list[dict], variant: str = "pruned", seed: int = 4, backend=None, model=None) -> dict:
     backend = backend or get_backend()
-    model = model or os.environ.get("HVEVAL_MODEL", "mock")
+    model = model or os.environ.get("VAA_MODEL", "mock")
     rng = random.Random(seed)
     out = {"variant": variant, "backend": backend.__class__.__name__, "model": model,
            "is_mock": backend.__class__.__name__ == "MockBackend", "n_rows": len(rows), "relations": {}}

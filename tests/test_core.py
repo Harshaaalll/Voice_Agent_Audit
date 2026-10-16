@@ -1,9 +1,9 @@
 import random
-from hveval.checks import run_all, check_no_invented_figures, check_banned_phrases
-from hveval.dataset import generate
-from hveval.noise import asr_noise
-from hveval.prompts import build_prompt
-from hveval.runner import run_variant, summarize
+from voice_agent_audit.checks import run_all, check_no_invented_figures, check_banned_phrases
+from voice_agent_audit.dataset import generate
+from voice_agent_audit.noise import asr_noise
+from voice_agent_audit.prompts import build_prompt
+from voice_agent_audit.runner import run_variant, summarize
 
 ACCT = {"loan_id": "LN123456", "amount_due": 5000, "due_date": "2026-09-10", "days_overdue": 7, "lender": "Sunrise Finance"}
 

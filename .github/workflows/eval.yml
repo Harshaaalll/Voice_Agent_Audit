@@ -13,8 +13,8 @@ jobs:
     env:
       # PRs and pushes use the offline mock (plumbing check, not a quality measurement).
       # Nightly/manual runs use Gemini when the secret exists.
-      HVEVAL_BACKEND: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && secrets.GEMINI_API_KEY != '' && 'gemini' || 'mock' }}
-      HVEVAL_MODEL: ${{ vars.HVEVAL_MODEL || 'gemini-2.0-flash' }}
+      VAA_BACKEND: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && secrets.GEMINI_API_KEY != '' && 'gemini' || 'mock' }}
+      VAA_MODEL: ${{ vars.VAA_MODEL || 'gemini-2.0-flash' }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       PROMPTFOO_DISABLE_TELEMETRY: "1"
       PROMPTFOO_PYTHON: python
@@ -25,13 +25,13 @@ jobs:
         with: { python-version: "3.12" }
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
-      - run: pip install -e '.[dev]'
+      - run: pip install -e '.[dev,service]'
       - run: pytest -q
-      - run: hveval gen --n 120
+      - run: vaa gen --n 120
       - name: promptfoo eval
         run: npx --yes promptfoo@0.124.1 eval -c promptfooconfig.yaml --no-cache --max-concurrency 2
-      - name: hveval summary
-        run: hveval run | tee results/summary.txt
+      - name: vaa summary
+        run: vaa run | tee results/summary.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

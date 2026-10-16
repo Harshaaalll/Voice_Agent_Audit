@@ -1,7 +1,7 @@
 import pytest
-from hveval import translation as T
-from hveval.metamorphic import RELATIONS, run as meta_run
-from hveval.llm import Backend, LLMResult
+from voice_agent_audit import translation as T
+from voice_agent_audit.metamorphic import RELATIONS, run as meta_run
+from voice_agent_audit.llm import Backend, LLMResult
 
 ITEMS, HIDDEN = T.generate_items(per_cell=3, seed=21)
 LV = {h["id"]: h["level"] for h in HIDDEN}
